@@ -18,16 +18,34 @@ static PyMethodDef AvxmathMethods[] = {
 };
 
 /* The loop definition must precede the PyMODINIT_FUNC. */
-static void double_xsin(char **args, npy_intp *dimensions,
+typedef struct {
+    double (*mathfunc)(double);
+    vdouble (*avxfunc)(vdouble);
+    char name[10];
+    char docstring[256];
+} tandem;
+
+tandem sin_tandem = {&sin, &xsin, "sin", "AVX-accelerated float64 sinus calculation"};
+tandem cos_tandem = {&cos, &xcos, "cos", "AVX-accelerated float64 cosinus calculation"};
+tandem exp_tandem = {&exp, &xexp, "exp", "AVX-accelerated float64 exponent calculation"};
+
+static tandem *tandems[] = {
+    &sin_tandem, &cos_tandem, &exp_tandem,
+};
+
+static void double_xloop(char **args, npy_intp *dimensions,
                             npy_intp* steps, void* data)
 {
     npy_intp i;
     npy_intp n = dimensions[0];
     char *in = args[0], *out = args[1];
     npy_intp in_step = steps[0], out_step = steps[1];
+    tandem *f = (tandem *)data;
+    double (*mathfunc)(double) = f->mathfunc;
+    vdouble (*avxfunc)(vdouble) = f->avxfunc;
     for(i = 0; i < n % VECTLENDP; i++)
     {
-        *((double *)out) = sin(*(double *)in);
+        *((double *)out) = (*mathfunc)(*(double *)in);
         in += in_step;
         out += out_step;
     }
@@ -51,19 +69,31 @@ static void double_xsin(char **args, npy_intp *dimensions,
         for(i = 0; i < n; i += VECTLENDP)
         {
             a = vloadu(in_array + i);
-    	    a = xsin(a);
+    	    a = (*avxfunc)(a);
 	    	vstoreu(out_array + i, a);    
         }
    }
 }
-
 /*This a pointer to the above function*/
-PyUFuncGenericFunction funcs[1] = {&double_xsin};
-
+PyUFuncGenericFunction funcs[1] = {&double_xloop};
 /* These are the input and return dtypes of our functions.*/
-static char types[2] = {NPY_DOUBLE, NPY_DOUBLE};
+char types[2] = {NPY_DOUBLE, NPY_DOUBLE};
 
-static void *data[1] = {NULL};
+static void register_avx_tandems(PyObject *m)
+{
+    int i;
+    PyObject *f, *d;
+    for(i = 0; i < sizeof(tandems)/sizeof(tandems[0]); i++)
+    {
+        
+        f = PyUFunc_FromFuncAndData(funcs, tandems + i, types, 1, 1, 1,
+                                    PyUFunc_None, tandems[i]->name,
+                                    tandems[i]->docstring, 0);
+        d = PyModule_GetDict(m);
+        PyDict_SetItemString(d, tandems[i]->name, f);
+        Py_DECREF(f);
+    }
+}
 
 #if PY_VERSION_HEX >= 0x03000000
 static struct PyModuleDef moduledef = {
@@ -80,47 +110,26 @@ static struct PyModuleDef moduledef = {
 
 PyMODINIT_FUNC PyInit_avxmath(void)
 {
-    PyObject *m, *xsin, *d;
+    PyObject *m;
     m = PyModule_Create(&moduledef);
     if (!m) {
         return NULL;
     }
-
     import_array();
     import_umath();
-
-    xsin = PyUFunc_FromFuncAndData(funcs, data, types, 1, 1, 1,
-                                    PyUFunc_None, "sin",
-                                    "sin_docstring", 0);
-
-    d = PyModule_GetDict(m);
-
-    PyDict_SetItemString(d, "sin", xsin);
-    Py_DECREF(xsin);
-
+    register_avx_tandems(m);
     return m;
 }
 #else
 PyMODINIT_FUNC initavxmath(void)
 {
-    PyObject *m, *xsin, *d;
-
-
+    PyObject *m;
     m = Py_InitModule("avxmath", AvxmathMethods);
     if (m == NULL) {
         return;
     }
-
     import_array();
     import_umath();
-
-    xsin = PyUFunc_FromFuncAndData(funcs, data, types, 1, 1, 1,
-                                    PyUFunc_None, "sin",
-                                    "sin_docstring", 0);
-
-    d = PyModule_GetDict(m);
-
-    PyDict_SetItemString(d, "sin", xsin);
-    Py_DECREF(xsin);
+    register_avx_tandems(m);
 }
 #endif
