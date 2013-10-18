@@ -34,7 +34,7 @@ def configuration(parent_package='', top_path=None):
                            parent_package,
                            top_path)
     config.add_extension('avxmath', ['avxmath.c', 'sleef/sleefsimddp.c', 'sleef/sleefsimdsp.c'], 
-                         extra_compile_args=['-O', '-Wall', '-Wno-unused', '-Wno-attributes', '-DENABLE_AVX','-mavx'], 
+                         extra_compile_args=['-O3', '-Wall', '-Wno-unused', '-Wno-attributes', '-DENABLE_AVX','-mavx'], 
                          extra_link_args=['-lm'])
 
     return config

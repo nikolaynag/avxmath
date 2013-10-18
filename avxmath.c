@@ -19,7 +19,7 @@ static PyMethodDef AvxmathMethods[] = {
 
 /* The loop definition must precede the PyMODINIT_FUNC. */
 
-static void double_avxsin(char **args, npy_intp *dimensions,
+static void double_xsin(char **args, npy_intp *dimensions,
                             npy_intp* steps, void* data)
 {
     npy_intp k, i;
@@ -54,7 +54,7 @@ static void double_avxsin(char **args, npy_intp *dimensions,
 }
 
 /*This a pointer to the above function*/
-PyUFuncGenericFunction funcs[1] = {&double_avxsin};
+PyUFuncGenericFunction funcs[1] = {&double_xsin};
 
 /* These are the input and return dtypes of our functions.*/
 static char types[2] = {NPY_DOUBLE, NPY_DOUBLE};
@@ -76,7 +76,7 @@ static struct PyModuleDef moduledef = {
 
 PyMODINIT_FUNC PyInit_avxmath(void)
 {
-    PyObject *m, *avxsin, *d;
+    PyObject *m, *xsin, *d;
     m = PyModule_Create(&moduledef);
     if (!m) {
         return NULL;
@@ -85,21 +85,21 @@ PyMODINIT_FUNC PyInit_avxmath(void)
     import_array();
     import_umath();
 
-    avxsin = PyUFunc_FromFuncAndData(funcs, data, types, 1, 1, 1,
-                                    PyUFunc_None, "avxsin",
-                                    "avxsin_docstring", 0);
+    xsin = PyUFunc_FromFuncAndData(funcs, data, types, 1, 1, 1,
+                                    PyUFunc_None, "sin",
+                                    "sin_docstring", 0);
 
     d = PyModule_GetDict(m);
 
-    PyDict_SetItemString(d, "avxsin", avxsin);
-    Py_DECREF(avxsin);
+    PyDict_SetItemString(d, "sin", xsin);
+    Py_DECREF(xsin);
 
     return m;
 }
 #else
 PyMODINIT_FUNC initavxmath(void)
 {
-    PyObject *m, *avxsin, *d;
+    PyObject *m, *xsin, *d;
 
 
     m = Py_InitModule("avxmath", AvxmathMethods);
@@ -110,13 +110,13 @@ PyMODINIT_FUNC initavxmath(void)
     import_array();
     import_umath();
 
-    avxsin = PyUFunc_FromFuncAndData(funcs, data, types, 1, 1, 1,
-                                    PyUFunc_None, "avxsin",
-                                    "avxsin_docstring", 0);
+    xsin = PyUFunc_FromFuncAndData(funcs, data, types, 1, 1, 1,
+                                    PyUFunc_None, "sin",
+                                    "sin_docstring", 0);
 
     d = PyModule_GetDict(m);
 
-    PyDict_SetItemString(d, "avxsin", avxsin);
-    Py_DECREF(avxsin);
+    PyDict_SetItemString(d, "sin", xsin);
+    Py_DECREF(xsin);
 }
 #endif
