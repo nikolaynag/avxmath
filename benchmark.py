@@ -14,7 +14,7 @@ functions = [
 ]
 
 def test_func(name, npfunc, avxfunc):
-    x = 100*random.random(10000001)
+    x = random.random(10000001)
     #x = x.reshape(100,100000)
     t = time.time()
     for i in range(COUNT):
@@ -34,3 +34,12 @@ def test_func(name, npfunc, avxfunc):
 for name, npfunc, avxfunc in functions:
     test_func(name, npfunc, avxfunc)
     print 
+
+x = random.random(10000001)
+ys1, yc1 = numpy.sin(x), numpy.cos(x)
+ys2, yc2 = avxmath.sincos(x)
+
+print "sincos: max difference sin is %lg" % abs(ys2 - ys1).max()
+print "sincos: max difference cos is %lg" % abs(yc2 - yc1).max()
+
+

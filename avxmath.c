@@ -74,25 +74,79 @@ static void double_xloop(char **args, npy_intp *dimensions,
         }
    }
 }
-/*This a pointer to the above function*/
-PyUFuncGenericFunction funcs[1] = {&double_xloop};
+
+static void double_sincos(char **args, npy_intp *dimensions,
+                            npy_intp* steps, void* data)
+{
+    npy_intp i;
+    npy_intp n = dimensions[0];
+    char *in = args[0], *out1 = args[1], *out2 = args[2];
+    npy_intp in_step = steps[0], out1_step = steps[1], out2_step = steps[2];
+    for(i = 0; i < n % VECTLENDP; i++)
+    {
+        sincos(*(double *)in, (double *)out1, (double *)out2);
+        in += in_step;
+        out1 += out1_step;
+        out2 += out2_step;
+    }    
+    if(i == n) return;
+    if(in_step != sizeof(double) || out1_step != sizeof(double) || out2_step != sizeof(double))
+    {
+        int i;
+        out1 = args[1];
+        out2 = args[2];
+        for(i = 0; i < n; i++)
+        {
+            *((double *)out1) = NAN;
+            *((double *)out2) = NAN;
+            out2 += out1_step;
+            out2 += out1_step;
+        }
+        return;
+    } 
+    else 
+    {
+    	vdouble a;
+        vdouble2 b;
+        double *in_array = (double *)in;
+        double *out_array1 = (double *)out1;
+        double *out_array2 = (double *)out2;
+        for(i = 0; i < n; i += VECTLENDP)
+        {
+            a = vloadu(in_array + i);
+    	    b = xsincos(a);
+	    	vstoreu(out_array1 + i, b.x);    
+	    	vstoreu(out_array2 + i, b.y);    
+        }
+   }
+}
+static PyUFuncGenericFunction funcs1[] = {&double_xloop};
+static PyUFuncGenericFunction funcs2[] = {&double_sincos};
+
 /* These are the input and return dtypes of our functions.*/
-char types[2] = {NPY_DOUBLE, NPY_DOUBLE};
+static char types1[] = {NPY_DOUBLE, NPY_DOUBLE};
+static char types2[] = {NPY_DOUBLE, NPY_DOUBLE, NPY_DOUBLE,};
+static void *data2[] = {NULL};
 
 static void register_avx_tandems(PyObject *m)
 {
     int i;
     PyObject *f, *d;
+    d = PyModule_GetDict(m);
     for(i = 0; i < sizeof(tandems)/sizeof(tandems[0]); i++)
     {
         
-        f = PyUFunc_FromFuncAndData(funcs, tandems + i, types, 1, 1, 1,
+        f = PyUFunc_FromFuncAndData(funcs1, (void *)(tandems + i), types1, 1, 1, 1,
                                     PyUFunc_None, tandems[i]->name,
                                     tandems[i]->docstring, 0);
-        d = PyModule_GetDict(m);
         PyDict_SetItemString(d, tandems[i]->name, f);
         Py_DECREF(f);
     }
+    f = PyUFunc_FromFuncAndData(funcs2, data2, types2, 1, 1, 2,
+                                    PyUFunc_None, "sincos",
+                                    "AVX-accelerated simultanious sin and cos computation", 0);
+    PyDict_SetItemString(d, "sincos", f);
+    Py_DECREF(f);
 }
 
 #if PY_VERSION_HEX >= 0x03000000
