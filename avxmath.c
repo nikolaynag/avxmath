@@ -18,39 +18,43 @@ static PyMethodDef AvxmathMethods[] = {
 };
 
 /* The loop definition must precede the PyMODINIT_FUNC. */
-
 static void double_xsin(char **args, npy_intp *dimensions,
                             npy_intp* steps, void* data)
 {
-    npy_intp k, i;
+    npy_intp i;
     npy_intp n = dimensions[0];
     char *in = args[0], *out = args[1];
     npy_intp in_step = steps[0], out_step = steps[1];
-
-    double tmp[VECTLENDP];
-	vdouble a;
-    int chunks = n/VECTLENDP;
-    for(k = 0; k < chunks; k++)
+    for(i = 0; i < n % VECTLENDP; i++)
     {
-        for(i = 0; i < VECTLENDP; i++) {
-            tmp[i] = *(double *)in;
-            in += in_step;
-        }
-        a = vloadu(tmp);
-	    a = xsin(a);
-		vstoreu(tmp, a);    
-        for(i = 0; i < VECTLENDP; i++) {
-            *((double *)out) = tmp[i];
-            out += out_step;
-        }
-    }
-
-    for (i = VECTLENDP*chunks; i < n; i++) {
-        
         *((double *)out) = sin(*(double *)in);
         in += in_step;
         out += out_step;
     }
+    if(i == n) return;
+    if(in_step != sizeof(double) || out_step != sizeof(double))
+    {
+        int i;
+        out = args[1];
+        for(i = 0; i < n; i++)
+        {
+            *((double *)out) = NAN;
+            out += out_step;
+        }
+        return;
+    } 
+    else 
+    {
+    	vdouble a;
+        double *in_array = (double *)in;
+        double *out_array = (double *)out;
+        for(i = 0; i < n; i += VECTLENDP)
+        {
+            a = vloadu(in_array + i);
+    	    a = xsin(a);
+	    	vstoreu(out_array + i, a);    
+        }
+   }
 }
 
 /*This a pointer to the above function*/
